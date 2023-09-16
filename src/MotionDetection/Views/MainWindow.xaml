@@ -9,7 +9,7 @@
         mc:Ignorable="d"
         Title="Motion Detection" Height="450" Width="800"
         Background="Black">
-    
+
     <Window.DataContext>
         <viewmodels:MainWindowViewModel />
     </Window.DataContext>
@@ -18,14 +18,29 @@
         <epoxy:Event EventName="Loaded" Command="{Binding Loaded}" />
     </epoxy:EventBinder.Events>
 
-    <Grid>
-        <siv:SKImageView Source="{Binding Image}" Stretch="Uniform" />
-        <StackPanel Orientation="Vertical">
-            <TextBlock Foreground="Yellow" Text="{Binding Device}" />
-            <TextBlock Foreground="Yellow" Text="{Binding Characteristics}" />
-            <TextBlock Foreground="Yellow" Text="{Binding Statistics1}" />
-            <TextBlock Foreground="Yellow" Text="{Binding Statistics2}" />
-            <TextBlock Foreground="Yellow" Text="{Binding Statistics3}" />
+    <DockPanel>
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Height="40" Background="AliceBlue">
+            <ComboBox HorizontalAlignment="Stretch"
+                IsEnabled="{Binding IsEnbaled}"
+                ItemsSource="{Binding DeviceList}"
+                SelectedItem="{Binding Device, Mode=TwoWay}" 
+                VerticalContentAlignment="Center"/>
+            <GridSplitter Width="10"/>
+            <ComboBox HorizontalAlignment="Stretch"
+                IsEnabled="{Binding IsEnbaled}"
+                ItemsSource="{Binding CharacteristicsList}"
+                SelectedItem="{Binding Characteristics, Mode=TwoWay}" 
+                VerticalContentAlignment="Center"/>
         </StackPanel>
-    </Grid>
+        <Grid>
+            <siv:SKImageView Source="{Binding Image}" Stretch="Uniform" />
+            <StackPanel Orientation="Vertical">
+                <TextBlock Foreground="Yellow" Text="{Binding Device}" />
+                <TextBlock Foreground="Yellow" Text="{Binding Characteristics}" />
+                <TextBlock Foreground="Yellow" Text="{Binding Statistics1}" />
+                <TextBlock Foreground="Yellow" Text="{Binding Statistics2}" />
+                <TextBlock Foreground="Yellow" Text="{Binding Statistics3}" />
+            </StackPanel>
+        </Grid>
+    </DockPanel>
 </Window>
