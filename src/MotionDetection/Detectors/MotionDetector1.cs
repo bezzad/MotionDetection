@@ -20,6 +20,7 @@ internal class MotionDetector1 : IMotionDetector
         width = image.Width;
         height = image.Height;
         var grayMatrix = image.ToGrayScaleMatrix();
+        //AddFrame(grayMatrix);
 
         if (backgroundFrame == null)
         {
@@ -31,6 +32,7 @@ internal class MotionDetector1 : IMotionDetector
         }
 
         OnPixelAction(image, backgroundFrame, grayMatrix);
+        backgroundFrame = grayMatrix;
     }
 
     private unsafe void OnPixelAction(SKBitmap image, byte[] background, byte[] frame)
