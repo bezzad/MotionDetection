@@ -1,6 +1,7 @@
 ﻿using Epoxy;
 using Epoxy.Synchronized;
 using FlashCap;
+using MotionDetection.Detectors;
 using SkiaSharp;
 using System;
 using System.Collections.ObjectModel;
@@ -18,6 +19,7 @@ public sealed class MainWindowViewModel
     private long lastCountFrames;
     private double lastFrameTime;
     private double realFps;
+    private IMotionDetector motionDetector;
 
     // Constructed capture device.
     private CaptureDevice? captureDevice;
@@ -27,6 +29,9 @@ public sealed class MainWindowViewModel
     public Command? Loaded { get; }
     public bool IsEnbaled { get; private set; }
     public SKBitmap? Image { get; private set; }
+    public string? Statistics1 { get; private set; }
+    public string? Statistics2 { get; private set; }
+    public string? Statistics3 { get; private set; }
 
     public ObservableCollection<CaptureDeviceDescriptor?> DeviceList { get; } = new();
     public CaptureDeviceDescriptor? Device { get; set; }
@@ -34,13 +39,13 @@ public sealed class MainWindowViewModel
     public ObservableCollection<VideoCharacteristics> CharacteristicsList { get; } = new();
     public VideoCharacteristics? Characteristics { get; set; }
 
-    public string? Statistics1 { get; private set; }
-    public string? Statistics2 { get; private set; }
-    public string? Statistics3 { get; private set; }
 
     public MainWindowViewModel()
     {
         // Window shown:
+
+        motionDetector = new MotionDetector1();
+
         Loaded = Command.Factory.CreateSync(() =>
         {
             ////////////////////////////////////////////////
@@ -173,6 +178,8 @@ public sealed class MainWindowViewModel
 
         // `bitmap` is copied, so we can release pixel buffer now.
         bufferScope.ReleaseNow();
+
+        motionDetector.ProcessFrame(bitmap);
 
         // Switch to UI thread:
         if (await UIThread.TryBind())
