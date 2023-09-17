@@ -1,4 +1,7 @@
 ﻿using SkiaSharp;
+using System.Runtime.InteropServices;
+using System;
+using System.Diagnostics;
 
 namespace MotionDetection
 {
@@ -13,7 +16,7 @@ namespace MotionDetection
                 });
 
 
-        public static void ToGrayScale(this SKBitmap bitmap)
+        public static void ToGrayScaleImage(this SKBitmap bitmap)
         {
             using var canvas = new SKCanvas(bitmap);
             using SKPaint paint = new SKPaint();
@@ -22,22 +25,88 @@ namespace MotionDetection
             canvas.DrawBitmap(bitmap, bitmap.Info.Rect, paint);
         }
 
-        public static byte[] ToGrayScaleMatrix(this SKBitmap bitmap)
+        public static byte[] ToGrayScaleArray(this SKBitmap bitmap)
         {
+            ReadOnlySpan<byte> spn = bitmap.GetPixelSpan();
             var width = bitmap.Width;
             var height = bitmap.Height;
             var grayScaleArray = new byte[width * height];
-            for (int x = 0; x < width; x++)
+            var colorIndexes = bitmap.GetColorIndexes();
+
+            for (int y = 0; y < height; y++)
             {
-                for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
                 {
-                    var pixel = bitmap.GetPixel(x, y);
                     // grayscale value using BT709
-                    grayScaleArray[width * y + x] = (byte)(0.2125f * pixel.Red + 0.7154f * pixel.Green + 0.0721f * pixel.Blue);
+                    int offset = (y * width + x) * bitmap.BytesPerPixel;
+                    grayScaleArray[y * width + x] = (byte)(0.2125f * spn[offset + colorIndexes.Red] + 0.7154f * spn[offset + colorIndexes.Green] + 0.0721f * spn[colorIndexes.Blue]);
                 }
             }
 
             return grayScaleArray;
+        }
+
+        public static (int Red, int Green, int Blue, int Alpha) GetColorIndexes(this SKBitmap bitmap)
+        {
+            return bitmap.ColorType switch
+            {
+                SKColorType.Bgra8888 => (2, 1, 0, 3),
+                SKColorType.Rgba8888 => (0, 1, 2, 3),
+                SKColorType.Argb4444 => (1, 2, 3, 0),
+                SKColorType.Rgba16161616 => (0, 1, 2, 3),
+                SKColorType.Rgb888x => (0, 1, 2, 0),
+                SKColorType.Gray8 => (0, 0, 0, 0),
+                _ => (0, 1, 2, 3),
+            };
+        }
+
+        public static SKBitmap ToImage(this byte[,,] pixelArray)
+        {
+            int width = pixelArray.GetLength(1);
+            int height = pixelArray.GetLength(0);
+
+            uint[] pixelValues = new uint[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    byte alpha = 255;
+                    byte red = pixelArray[y, x, 0];
+                    byte green = pixelArray[y, x, 1];
+                    byte blue = pixelArray[y, x, 2];
+                    uint pixelValue = (uint)red + (uint)(green << 8) + (uint)(blue << 16) + (uint)(alpha << 24);
+                    pixelValues[y * width + x] = pixelValue;
+                }
+            }
+
+            SKBitmap bitmap = new();
+            GCHandle gcHandle = GCHandle.Alloc(pixelValues, GCHandleType.Pinned);
+            SKImageInfo info = new(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+
+            IntPtr ptr = gcHandle.AddrOfPinnedObject();
+            int rowBytes = info.RowBytes;
+            bitmap.InstallPixels(info, ptr, rowBytes, delegate { gcHandle.Free(); });
+
+            return bitmap;
+        }
+
+        public static byte[,,] ToArray(this SKBitmap bmp)
+        {
+            ReadOnlySpan<byte> spn = bmp.GetPixelSpan();
+
+            byte[,,] pixelValues = new byte[bmp.Height, bmp.Width, 3];
+            for (int y = 0; y < bmp.Height; y++)
+            {
+                for (int x = 0; x < bmp.Width; x++)
+                {
+                    int offset = (y * bmp.Width + x) * bmp.BytesPerPixel;
+                    pixelValues[y, x, 0] = spn[offset + 2];
+                    pixelValues[y, x, 1] = spn[offset + 1];
+                    pixelValues[y, x, 2] = spn[offset + 0];
+                }
+            }
+
+            return pixelValues;
         }
     }
 }

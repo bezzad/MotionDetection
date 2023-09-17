@@ -1,15 +1,16 @@
 ﻿using SkiaSharp;
 using System;
+using System.Threading;
 
 namespace MotionDetection.Detectors;
 
 internal class MotionDetector1 : IMotionDetector
 {
-    private byte[] backgroundFrame;
+    private byte[]? backgroundFrame;
     private int width;  // image width
     private int height; // image height
     private int pixelsChanged;
-    private byte threshold = 20;
+    private byte threshold = 30;
     private SKColor red = SKColor.Parse("#FFAA0000");
 
     public bool MotionLevelCalculation { get; set; }
@@ -19,8 +20,7 @@ internal class MotionDetector1 : IMotionDetector
     {
         width = image.Width;
         height = image.Height;
-        var grayMatrix = image.ToGrayScaleMatrix();
-        //AddFrame(grayMatrix);
+        var grayMatrix = image.ToGrayScaleArray();
 
         if (backgroundFrame == null)
         {
@@ -39,22 +39,22 @@ internal class MotionDetector1 : IMotionDetector
     {
         byte* dstPtr = (byte*)image.GetPixels().ToPointer();
         SKColorType typeAdj = image.ColorType;
+        var colorIndexes = image.GetColorIndexes();
 
         for (int i = 0; i < background.Length; i++)
         {
             if (Math.Abs(background[i] - frame[i]) > threshold)
             {
-                //image.SetPixel(i % height, i / height, red);
-
+                Interlocked.Increment(ref pixelsChanged);
                 // Store the bytes in the adjusted bitmap
-                if (typeAdj == SKColorType.Rgba8888)
+                if (colorIndexes.Red < colorIndexes.Green)
                 {
                     *dstPtr++ = red.Red;
                     *dstPtr++ = red.Green;
                     *dstPtr++ = red.Blue;
                     *dstPtr++ = red.Alpha;
                 }
-                else if (typeAdj == SKColorType.Bgra8888)
+                else
                 {
                     *dstPtr++ = red.Blue;
                     *dstPtr++ = red.Green;
@@ -64,7 +64,7 @@ internal class MotionDetector1 : IMotionDetector
             }
             else
             {
-                dstPtr += 4;
+                dstPtr += image.BytesPerPixel;
             }
         }
     }
