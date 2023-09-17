@@ -1,44 +1,11 @@
 ﻿using SkiaSharp;
 using System;
-using System.Threading;
 
 namespace MotionDetection.Detectors;
 
-internal class TwoFramesDifferenceDetector : IMotionDetector
+public class TwoFramesDifferenceDetector : MotionDetector
 {
-    private byte[]? backgroundFrame;
-    private int width;  // image width
-    private int height; // image height
-    private int pixelsChanged;
-    private byte threshold = 30;
-    private SKColor detectionBorderColor = SKColor.Parse("#FFAA0000");
-
-    public bool MotionLevelCalculation { get; set; }
-    public double MotionLevel => (double)pixelsChanged / (width * height);
-
-    public double ProcessFrame(SKBitmap image)
-    {
-        width = image.Width;
-        height = image.Height;
-        var grayMatrix = image.ToGrayScaleArray();
-
-        if (backgroundFrame == null)
-        {
-            // alloc memory for a backgound image and for current image
-            backgroundFrame = grayMatrix;
-
-            // just return for the first time
-            return 0;
-        }
-
-        double diffCount = OnPixelsDiffAction(image, backgroundFrame, grayMatrix);
-        Interlocked.Exchange(ref pixelsChanged, 0);
-        var motionLevel = (double)diffCount / (width * height);
-        backgroundFrame = grayMatrix;
-        return motionLevel;
-    }
-
-    private unsafe int OnPixelsDiffAction(SKBitmap image, byte[] background, byte[] frame)
+    protected override unsafe int OnPixelsDiffAction(SKBitmap image, byte[] background, byte[] frame)
     {
         byte* dstPtr = (byte*)image.GetPixels().ToPointer();
         SKColorType typeAdj = image.ColorType;
@@ -47,23 +14,23 @@ internal class TwoFramesDifferenceDetector : IMotionDetector
 
         for (int i = 0; i < background.Length; i++)
         {
-            if (Math.Abs(background[i] - frame[i]) > threshold)
+            if (Math.Abs(background[i] - frame[i]) > DetectionNoiseThreshold)
             {
                 updatedPixels++;
                 // Store the bytes in the adjusted bitmap
                 if (colorIndexes.Red < colorIndexes.Green)
                 {
-                    *dstPtr++ = detectionBorderColor.Red;
-                    *dstPtr++ = detectionBorderColor.Green;
-                    *dstPtr++ = detectionBorderColor.Blue;
-                    *dstPtr++ = detectionBorderColor.Alpha;
+                    *dstPtr++ = DetectionColor.Red;
+                    *dstPtr++ = DetectionColor.Green;
+                    *dstPtr++ = DetectionColor.Blue;
+                    *dstPtr++ = DetectionColor.Alpha;
                 }
                 else
                 {
-                    *dstPtr++ = detectionBorderColor.Blue;
-                    *dstPtr++ = detectionBorderColor.Green;
-                    *dstPtr++ = detectionBorderColor.Red;
-                    *dstPtr++ = detectionBorderColor.Alpha;
+                    *dstPtr++ = DetectionColor.Blue;
+                    *dstPtr++ = DetectionColor.Green;
+                    *dstPtr++ = DetectionColor.Red;
+                    *dstPtr++ = DetectionColor.Alpha;
                 }
             }
             else
@@ -73,11 +40,5 @@ internal class TwoFramesDifferenceDetector : IMotionDetector
         }
 
         return updatedPixels;
-    }
-
-    public void Reset()
-    {
-        //backgroundFrame?.Dispose();
-        backgroundFrame = null;
     }
 }
