@@ -1,13 +1,15 @@
 ﻿using SkiaSharp;
 using System;
+using System.Collections.Immutable;
 using System.Drawing;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace MotionDetection
 {
     public static class Extension
     {
-        private static SKColorFilter grayScaleFilter = SKColorFilter.CreateColorMatrix(new float[]
+        private static SKColorFilter GrayScaleFilter = SKColorFilter.CreateColorMatrix(new float[]
                 {
                     0.2126f, 0.7152f, 0.0722f, 0, 0,  // red channel weights
                     0.2126f, 0.7152f, 0.0722f, 0, 0,  // green channel weights
@@ -15,11 +17,12 @@ namespace MotionDetection
                     0,       0,       0,       1, 0   // alpha channel weights
                 });
 
-        public static unsafe void Mirror(this SKBitmap srcBitmap)
+        public static unsafe SKBitmap Mirror(this SKBitmap srcBitmap)
         {
             using var canvas = new SKCanvas(srcBitmap);
             canvas.Scale(-1, 1, srcBitmap.Width / 2.0f, 0);
             canvas.DrawBitmap(srcBitmap, new SKPoint(0.0f, 0.0f));
+            return srcBitmap;
         }
 
         public static unsafe SKBitmap CloneToRgba8888(this SKBitmap srcBitmap)
@@ -80,7 +83,7 @@ namespace MotionDetection
             using var canvas = new SKCanvas(bitmap);
             using SKPaint paint = new SKPaint();
             // Define a grayscale color filter to apply to the image
-            paint.ColorFilter = grayScaleFilter;
+            paint.ColorFilter = GrayScaleFilter;
             canvas.DrawBitmap(bitmap, bitmap.Info.Rect, paint);
         }
 
@@ -103,6 +106,47 @@ namespace MotionDetection
             }
 
             return grayScaleArray;
+        }
+
+        public static byte[] ApplyMedianFilter(this byte[] grayImageBytes, int width, int height)
+        {
+            if (grayImageBytes.Length != width * height)
+                throw new IndexOutOfRangeException(nameof(grayImageBytes));
+
+            var maskMatrix = new byte[9];
+            // center (4i) = y*w+x
+            // 0i:  center + y - 1              ______________
+            // 1i:  center - y                 | 0i | 1i | 2i |
+            // 2i:  center - y + 1             |____|____|____|
+            // 3i:  center - 1                 | 3i | 4i | 5i |
+            // 4i:  center                     |____|____|____|
+            // 5i:  center + 1                 | 6i | 7i | 8i |
+            // 6i:  center + y - 1             |____|____|____|
+            // 7i:  center + y 
+            // 8i:  center + y + 1
+            // 
+
+            for (int y = 1; y < height - 1; y++)
+            {
+                for (int x = 1; x < width - 1; x++)
+                {
+                    var center = y * width + x;
+                    maskMatrix[0] = grayImageBytes[center + y - 1];
+                    maskMatrix[1] = grayImageBytes[center - y];
+                    maskMatrix[2] = grayImageBytes[center - y + 1];
+                    maskMatrix[3] = grayImageBytes[center - 1];
+                    maskMatrix[4] = grayImageBytes[center];
+                    maskMatrix[5] = grayImageBytes[center + 1];
+                    maskMatrix[6] = grayImageBytes[center + y - 1];
+                    maskMatrix[7] = grayImageBytes[center + y];
+                    maskMatrix[8] = grayImageBytes[center + y + 1];
+
+                    Array.Sort(maskMatrix);
+                    grayImageBytes[center] = maskMatrix[4];
+                }
+            }
+
+            return grayImageBytes;
         }
 
         public static (int Red, int Green, int Blue, int Alpha) GetColorIndexes(this SKBitmap bitmap)
@@ -141,6 +185,19 @@ namespace MotionDetection
             SKBitmap bitmap = new();
             GCHandle gcHandle = GCHandle.Alloc(pixelValues, GCHandleType.Pinned);
             SKImageInfo info = new(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+
+            IntPtr ptr = gcHandle.AddrOfPinnedObject();
+            int rowBytes = info.RowBytes;
+            bitmap.InstallPixels(info, ptr, rowBytes, delegate { gcHandle.Free(); });
+
+            return bitmap;
+        }
+
+        public static SKBitmap ToImage(this byte[] pixelValues, int width, int height)
+        {
+            SKBitmap bitmap = new();
+            GCHandle gcHandle = GCHandle.Alloc(pixelValues, GCHandleType.Pinned);
+            SKImageInfo info = new(width, height, SKColorType.Gray8, SKAlphaType.Unpremul);
 
             IntPtr ptr = gcHandle.AddrOfPinnedObject();
             int rowBytes = info.RowBytes;

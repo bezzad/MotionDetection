@@ -11,7 +11,7 @@ internal class TwoFramesDifferenceDetector : IMotionDetector
     private int height; // image height
     private int pixelsChanged;
     private byte threshold = 30;
-    private SKColor red = SKColor.Parse("#FFAA0000");
+    private SKColor detectionBorderColor = SKColor.Parse("#FFAA0000");
 
     public bool MotionLevelCalculation { get; set; }
     public double MotionLevel => (double)pixelsChanged / (width * height);
@@ -53,17 +53,17 @@ internal class TwoFramesDifferenceDetector : IMotionDetector
                 // Store the bytes in the adjusted bitmap
                 if (colorIndexes.Red < colorIndexes.Green)
                 {
-                    *dstPtr++ = red.Red;
-                    *dstPtr++ = red.Green;
-                    *dstPtr++ = red.Blue;
-                    *dstPtr++ = red.Alpha;
+                    *dstPtr++ = detectionBorderColor.Red;
+                    *dstPtr++ = detectionBorderColor.Green;
+                    *dstPtr++ = detectionBorderColor.Blue;
+                    *dstPtr++ = detectionBorderColor.Alpha;
                 }
                 else
                 {
-                    *dstPtr++ = red.Blue;
-                    *dstPtr++ = red.Green;
-                    *dstPtr++ = red.Red;
-                    *dstPtr++ = red.Alpha;
+                    *dstPtr++ = detectionBorderColor.Blue;
+                    *dstPtr++ = detectionBorderColor.Green;
+                    *dstPtr++ = detectionBorderColor.Red;
+                    *dstPtr++ = detectionBorderColor.Alpha;
                 }
             }
             else
