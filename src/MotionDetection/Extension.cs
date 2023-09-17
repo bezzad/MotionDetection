@@ -14,6 +14,68 @@ namespace MotionDetection
                     0,       0,       0,       1, 0   // alpha channel weights
                 });
 
+        public static unsafe SKBitmap Mirror(this SKBitmap srcBitmap)
+        {
+            var width = srcBitmap.Width;
+            var height = srcBitmap.Height;
+            var srcArray = srcBitmap.ToArray();
+
+            byte[,,] pixelValues = new byte[height, width, 3];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    pixelValues[y, x, 0] = srcArray[y, width - x - 1, 0];
+                    pixelValues[y, x, 1] = srcArray[y, width - x - 1, 1];
+                    pixelValues[y, x, 2] = srcArray[y, width - x - 1, 2];
+                }
+            }
+
+            return pixelValues.ToImage();
+        }
+
+        public static unsafe SKBitmap CloneToRgba8888(this SKBitmap srcBitmap)
+        {
+            var width = srcBitmap.Width;
+            var height = srcBitmap.Height;
+            var typeOrg = srcBitmap.ColorType;
+            var typeAdj = SKColorType.Rgba8888;
+            var dstBitmap = new SKBitmap(width, height, typeAdj, srcBitmap.AlphaType, srcBitmap.ColorSpace);
+
+            byte* srcPtr = (byte*)srcBitmap.GetPixels().ToPointer();
+            byte* dstPtr = (byte*)dstBitmap.GetPixels().ToPointer();
+
+            for (int row = 0; row < height; row++)
+            {
+                for (int col = 0; col < width; col++)
+                {
+                    // Get color from original bitmap
+                    byte byte1 = *srcPtr++;  // red or blue
+                    byte byte2 = *srcPtr++;  // green
+                    byte byte3 = *srcPtr++;  // blue or red
+                    byte byte4 = *srcPtr++;  // alpha
+
+                    // Store the bytes in the adjusted bitmap
+                    if (typeOrg == SKColorType.Rgba8888)
+                    {
+                        *dstPtr++ = byte1;
+                        *dstPtr++ = byte2;
+                        *dstPtr++ = byte3;
+                        *dstPtr++ = byte4;
+                    }
+                    else if (typeOrg == SKColorType.Bgra8888)
+                    {
+                        *dstPtr++ = byte3;
+                        *dstPtr++ = byte2;
+                        *dstPtr++ = byte1;
+                        *dstPtr++ = byte4;
+                    }
+                }
+            }
+
+            return dstBitmap;
+        }
+
         public static unsafe void ToPosterizeImage(this SKBitmap bitmap)
         {
             uint* ptr = (uint*)bitmap.GetPixels().ToPointer();
@@ -103,15 +165,26 @@ namespace MotionDetection
         {
             ReadOnlySpan<byte> spn = bmp.GetPixelSpan();
 
-            byte[,,] pixelValues = new byte[bmp.Height, bmp.Width, 3];
+            byte[,,] pixelValues = new byte[bmp.Height, bmp.Width, 4];
             for (int y = 0; y < bmp.Height; y++)
             {
                 for (int x = 0; x < bmp.Width; x++)
                 {
                     int offset = (y * bmp.Width + x) * bmp.BytesPerPixel;
-                    pixelValues[y, x, 0] = spn[offset + 2];
-                    pixelValues[y, x, 1] = spn[offset + 1];
-                    pixelValues[y, x, 2] = spn[offset + 0];
+                    if (bmp.ColorType == SKColorType.Bgra8888)
+                    {
+                        pixelValues[y, x, 0] = spn[offset + 2]; // Red
+                        pixelValues[y, x, 1] = spn[offset + 1]; // Green
+                        pixelValues[y, x, 2] = spn[offset + 0]; // Blue
+                        pixelValues[y, x, 3] = spn[offset + 3]; // Alpha
+                    }
+                    else
+                    {
+                        pixelValues[y, x, 0] = spn[offset + 0]; // Red
+                        pixelValues[y, x, 1] = spn[offset + 1]; // Green
+                        pixelValues[y, x, 2] = spn[offset + 2]; // Blue
+                        pixelValues[y, x, 3] = spn[offset + 3]; // Alpha
+                    }
                 }
             }
 
