@@ -31,6 +31,11 @@
                 ItemsSource="{Binding CharacteristicsList}"
                 SelectedItem="{Binding Characteristics, Mode=TwoWay}" 
                 VerticalContentAlignment="Center"/>
+            <ComboBox HorizontalAlignment="Stretch"
+                IsEnabled="{Binding IsEnbaled}"
+                ItemsSource="{Binding Detectors}"
+                SelectedItem="{Binding Detector, Mode=TwoWay}"
+                VerticalContentAlignment="Center"/> 
         </StackPanel>
         <Grid>
             <siv:SKImageView Source="{Binding Image}" Stretch="Uniform" />

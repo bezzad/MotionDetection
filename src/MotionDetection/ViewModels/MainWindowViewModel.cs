@@ -1,4 +1,5 @@
 ﻿using Epoxy;
+using Epoxy.Supplemental;
 using Epoxy.Synchronized;
 using FlashCap;
 using MotionDetection.Detectors;
@@ -19,62 +20,86 @@ public sealed class MainWindowViewModel
     private long lastCountFrames;
     private double lastFrameTime;
     private double realFps;
-    private IMotionDetector motionDetector;
 
     // Constructed capture device.
     private CaptureDevice? captureDevice;
 
     // Binding members.
-    public Command? Opened { get; }
-    public Command? Loaded { get; }
+    public Command Opened { get; }
+    public Command Loaded { get; }
     public bool IsEnbaled { get; private set; }
-    public SKBitmap? Image { get; private set; }
-    public string? Statistics1 { get; private set; }
-    public string? Statistics2 { get; private set; }
-    public string? Statistics3 { get; private set; }
+    public SKBitmap Image { get; private set; }
+    public string Statistics1 { get; private set; }
+    public string Statistics2 { get; private set; }
+    public string Statistics3 { get; private set; }
 
     public ObservableCollection<CaptureDeviceDescriptor?> DeviceList { get; } = new();
-    public CaptureDeviceDescriptor? Device { get; set; }
+    public CaptureDeviceDescriptor Device { get; set; }
 
     public ObservableCollection<VideoCharacteristics> CharacteristicsList { get; } = new();
-    public VideoCharacteristics? Characteristics { get; set; }
+    public VideoCharacteristics Characteristics { get; set; }
+
+    public ObservableCollection<MotionDetector> Detectors { get; } = new();
+    private volatile MotionDetector _detector;
+    public MotionDetector Detector
+    {
+        get => _detector;
+        set => Interlocked.Exchange(ref _detector, value);
+    }
 
 
     public MainWindowViewModel()
     {
         // Window shown:
 
-        motionDetector = new TwoFramesDifferenceDetector();
-
         Loaded = Command.Factory.CreateSync(() =>
         {
             ////////////////////////////////////////////////
             // Initialize and start capture device
 
-            // Enumerate capture devices:
-            var devices = new CaptureDevices();
+            SetDevices(); // Store device list into the combo box.
 
-            // Store device list into the combo box.
-            DeviceList.Clear();
-
-            foreach (var descriptor in devices.EnumerateDescriptors().
-                // You could filter by device type and characteristics.
-                //Where(d => d.DeviceType == DeviceTypes.DirectShow).  // Only DirectShow device.
-                Where(d => d.Characteristics.Length >= 1))             // One or more valid video characteristics.
-            {
-                DeviceList.Add(descriptor);
-            }
-
-            IsEnbaled = true;
+            SetMotionDetectors();
 
             // select one camera from trusted place
             Device = DeviceList.FirstOrDefault();
+            Detector = Detectors.FirstOrDefault();
+
+            IsEnbaled = true;
         });
+    }
+
+    private void SetMotionDetectors()
+    {
+        var detectorTypes = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(assm => assm.GetTypes())
+            .Where(type => typeof(MotionDetector).IsAssignableFrom(type) &&
+                         !type.IsAbstract && type.IsClass)
+            .Select(type => (MotionDetector)Activator.CreateInstance(type))
+            .ToList();
+
+        Detectors.AddRange(detectorTypes);
+    }
+
+    private void SetDevices()
+    {
+        DeviceList.Clear();
+
+        // Enumerate capture devices:
+        var devices = new CaptureDevices();
+
+        foreach (var descriptor in devices.EnumerateDescriptors().
+            // You could filter by device type and characteristics.
+            //Where(d => d.DeviceType == DeviceTypes.DirectShow).  // Only DirectShow device.
+            Where(d => d.Characteristics.Length >= 1))             // One or more valid video characteristics.
+        {
+            DeviceList.Add(descriptor);
+        }
     }
 
     // Devices combo box was changed.
     [PropertyChanged(nameof(Device))]
-    private ValueTask OnDeviceListChangedAsync(CaptureDeviceDescriptor? descriptor)
+    private ValueTask OnDeviceListChangedAsync(CaptureDeviceDescriptor descriptor)
     {
         Debug.WriteLine($"OnDeviceListChangedAsync: Enter: {descriptor?.ToString() ?? "(null)"}");
 
@@ -105,7 +130,7 @@ public sealed class MainWindowViewModel
 
     // Characteristics combo box was changed.
     [PropertyChanged(nameof(Characteristics))]
-    private async ValueTask OnCharacteristicsChangedAsync(VideoCharacteristics? characteristics)
+    private async ValueTask OnCharacteristicsChangedAsync(VideoCharacteristics characteristics)
     {
         Debug.WriteLine($"OnCharacteristicsChangedAsync: Enter: {characteristics?.ToString() ?? "(null)"}");
 
@@ -180,10 +205,17 @@ public sealed class MainWindowViewModel
         bufferScope.ReleaseNow();
 
         // process new frame and check motion level
-        var motionlevel = motionDetector.ProcessFrame(bitmap);
-        if (motionlevel > 0.01)
+        try
         {
-            Debug.WriteLine("ring alarm for motion level " + motionlevel);
+            var motionlevel = Detector?.ProcessFrame(bitmap);
+            if (motionlevel > 0.01)
+            {
+                Debug.WriteLine("ring alarm for motion level " + motionlevel);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.Fail(ex.Message);
         }
 
         // Switch to UI thread:

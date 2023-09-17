@@ -15,25 +15,35 @@ public abstract class MotionDetector : IMotionDetector
     public bool MotionLevelCalculation { get; set; }
     public double MotionLevel => (double)pixelsChanged / (Width * Height);
 
-    public double ProcessFrame(SKBitmap image)
+    public double ProcessFrame(SKBitmap motionFrame)
     {
-        Width = image.Width;
-        Height = image.Height;
-        var grayMatrix = image.ToGrayScaleArray();
+        Interlocked.Exchange(ref Width, motionFrame.Width);
+        Interlocked.Exchange(ref Height, motionFrame.Height);
+        var grayMotionFrame = motionFrame.ToGrayScaleArray();
 
         if (BackgroundFrame == null)
         {
             // alloc memory for a backgound image and for current image
-            BackgroundFrame = grayMatrix;
+            BackgroundFrame = grayMotionFrame;
 
             // just return for the first time
             return 0;
         }
 
-        double diffCount = OnPixelsDiffAction(image, BackgroundFrame, grayMatrix);
-        Interlocked.Exchange(ref pixelsChanged, 0);
+        if (BackgroundFrame.Length != grayMotionFrame.Length || grayMotionFrame.Length != Width * Height)
+        {
+            return 0;
+        }
+
+        var diffCount = OnPixelsDiffAction(motionFrame, BackgroundFrame, grayMotionFrame);
+        Interlocked.Exchange(ref pixelsChanged, diffCount);
         var motionLevel = (double)diffCount / (Width * Height);
-        BackgroundFrame = grayMatrix;
+
+        if (diffCount > 0)
+        {
+            BackgroundFrame = grayMotionFrame;
+        }
+
         return motionLevel;
     }
 
