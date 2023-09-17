@@ -20,7 +20,8 @@ public interface IMotionDetector
     /// <summary>
     /// Process new frame
     /// </summary>
-    void ProcessFrame(SKBitmap image);
+    /// <returns>Motion level - amount of changes in percents</returns>
+    double ProcessFrame(SKBitmap image);
 
     /// <summary>
     /// Reset detector to initial state

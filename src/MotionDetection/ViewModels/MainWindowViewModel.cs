@@ -44,7 +44,7 @@ public sealed class MainWindowViewModel
     {
         // Window shown:
 
-        motionDetector = new MotionDetector1();
+        motionDetector = new TwoFramesDifferenceDetector();
 
         Loaded = Command.Factory.CreateSync(() =>
         {
@@ -179,7 +179,12 @@ public sealed class MainWindowViewModel
         // `bitmap` is copied, so we can release pixel buffer now.
         bufferScope.ReleaseNow();
 
-        motionDetector.ProcessFrame(bitmap);
+        // process new frame and check motion level
+        var motionlevel = motionDetector.ProcessFrame(bitmap);
+        if (motionlevel > 0.01)
+        {
+            Debug.WriteLine("ring alarm for motion level " + motionlevel);
+        }
 
         // Switch to UI thread:
         if (await UIThread.TryBind())

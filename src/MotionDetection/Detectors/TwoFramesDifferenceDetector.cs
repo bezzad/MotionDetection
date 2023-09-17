@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace MotionDetection.Detectors;
 
-internal class MotionDetector1 : IMotionDetector
+internal class TwoFramesDifferenceDetector : IMotionDetector
 {
     private byte[]? backgroundFrame;
     private int width;  // image width
@@ -16,7 +16,7 @@ internal class MotionDetector1 : IMotionDetector
     public bool MotionLevelCalculation { get; set; }
     public double MotionLevel => (double)pixelsChanged / (width * height);
 
-    public void ProcessFrame(SKBitmap image)
+    public double ProcessFrame(SKBitmap image)
     {
         width = image.Width;
         height = image.Height;
@@ -28,24 +28,28 @@ internal class MotionDetector1 : IMotionDetector
             backgroundFrame = grayMatrix;
 
             // just return for the first time
-            return;
+            return 0;
         }
 
-        OnPixelAction(image, backgroundFrame, grayMatrix);
+        double diffCount = OnPixelsDiffAction(image, backgroundFrame, grayMatrix);
+        Interlocked.Exchange(ref pixelsChanged, 0);
+        var motionLevel = (double)diffCount / (width * height);
         backgroundFrame = grayMatrix;
+        return motionLevel;
     }
 
-    private unsafe void OnPixelAction(SKBitmap image, byte[] background, byte[] frame)
+    private unsafe int OnPixelsDiffAction(SKBitmap image, byte[] background, byte[] frame)
     {
         byte* dstPtr = (byte*)image.GetPixels().ToPointer();
         SKColorType typeAdj = image.ColorType;
         var colorIndexes = image.GetColorIndexes();
+        var updatedPixels = 0;
 
         for (int i = 0; i < background.Length; i++)
         {
             if (Math.Abs(background[i] - frame[i]) > threshold)
             {
-                Interlocked.Increment(ref pixelsChanged);
+                updatedPixels++;
                 // Store the bytes in the adjusted bitmap
                 if (colorIndexes.Red < colorIndexes.Green)
                 {
@@ -67,6 +71,8 @@ internal class MotionDetector1 : IMotionDetector
                 dstPtr += image.BytesPerPixel;
             }
         }
+
+        return updatedPixels;
     }
 
     public void Reset()
