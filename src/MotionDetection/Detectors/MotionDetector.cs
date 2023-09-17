@@ -8,10 +8,10 @@ public abstract class MotionDetector : IMotionDetector
     protected int Width;  // image width
     protected int Height; // image height
     protected int pixelsChanged;
-    protected byte DetectionNoiseThreshold = 30;
     protected SKColor DetectionColor = SKColor.Parse("#FFAA0000");
     protected byte[] BackgroundFrame;
 
+    public int DifferenceThreshold { get; set; } = 30;
     public bool MotionLevelCalculation { get; set; }
     public double MotionLevel => (double)pixelsChanged / (Width * Height);
 

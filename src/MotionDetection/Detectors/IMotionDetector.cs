@@ -8,6 +8,15 @@ namespace MotionDetection.Detectors;
 public interface IMotionDetector
 {
     /// <summary>
+    /// Difference threshold value, [1, 255].
+    /// </summary>
+    /// <remarks><para>The value specifies the amount off difference between pixels, which is treated
+    /// as motion pixel.</para>
+    /// <para>Default value is set to <b>30</b>.</para>
+    /// </remarks>
+    int DifferenceThreshold { get; set; }
+
+    /// <summary>
     /// Motion level calculation - calculate or not motion level
     /// </summary>
     bool MotionLevelCalculation { set; get; }
