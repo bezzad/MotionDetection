@@ -1,5 +1,6 @@
 ﻿using SkiaSharp;
 using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
 
 namespace MotionDetection
@@ -14,24 +15,11 @@ namespace MotionDetection
                     0,       0,       0,       1, 0   // alpha channel weights
                 });
 
-        public static unsafe SKBitmap Mirror(this SKBitmap srcBitmap)
+        public static unsafe void Mirror(this SKBitmap srcBitmap)
         {
-            var width = srcBitmap.Width;
-            var height = srcBitmap.Height;
-            var srcArray = srcBitmap.ToArray();
-
-            byte[,,] pixelValues = new byte[height, width, 3];
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    pixelValues[y, x, 0] = srcArray[y, width - x - 1, 0];
-                    pixelValues[y, x, 1] = srcArray[y, width - x - 1, 1];
-                    pixelValues[y, x, 2] = srcArray[y, width - x - 1, 2];
-                }
-            }
-
-            return pixelValues.ToImage();
+            using var canvas = new SKCanvas(srcBitmap);
+            canvas.Scale(-1, 1, srcBitmap.Width / 2.0f, 0);
+            canvas.DrawBitmap(srcBitmap, new SKPoint(0.0f, 0.0f));
         }
 
         public static unsafe SKBitmap CloneToRgba8888(this SKBitmap srcBitmap)
@@ -141,10 +129,10 @@ namespace MotionDetection
             {
                 for (int x = 0; x < width; x++)
                 {
-                    byte alpha = 255;
                     byte red = pixelArray[y, x, 0];
                     byte green = pixelArray[y, x, 1];
                     byte blue = pixelArray[y, x, 2];
+                    byte alpha = pixelArray[y, x, 3];
                     uint pixelValue = (uint)red + (uint)(green << 8) + (uint)(blue << 16) + (uint)(alpha << 24);
                     pixelValues[y * width + x] = pixelValue;
                 }
