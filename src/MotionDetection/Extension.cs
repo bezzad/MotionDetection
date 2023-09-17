@@ -1,7 +1,6 @@
 ﻿using SkiaSharp;
-using System.Runtime.InteropServices;
 using System;
-using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace MotionDetection
 {
@@ -15,6 +14,16 @@ namespace MotionDetection
                     0,       0,       0,       1, 0   // alpha channel weights
                 });
 
+        public static unsafe void ToPosterizeImage(this SKBitmap bitmap)
+        {
+            uint* ptr = (uint*)bitmap.GetPixels().ToPointer();
+            int pixelCount = bitmap.Width * bitmap.Height;
+
+            for (int i = 0; i < pixelCount; i++)
+            {
+                *ptr++ &= 0xE0E0E0FF;
+            }
+        }
 
         public static void ToGrayScaleImage(this SKBitmap bitmap)
         {
