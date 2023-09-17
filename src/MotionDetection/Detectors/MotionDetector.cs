@@ -15,39 +15,37 @@ public abstract class MotionDetector : IMotionDetector
     public bool MotionLevelCalculation { get; set; }
     public double MotionLevel => (double)pixelsChanged / (Width * Height);
 
-    public double ProcessFrame(SKBitmap motionFrame)
+    public double ProcessFrame(SKBitmap frame)
     {
-        Interlocked.Exchange(ref Width, motionFrame.Width);
-        Interlocked.Exchange(ref Height, motionFrame.Height);
-        var grayMotionFrame = motionFrame.ToGrayScaleArray();
+        var grayscaleFrame = frame.Mirror().ToGrayScaleArray();
+        Interlocked.Exchange(ref Width, frame.Width);
+        Interlocked.Exchange(ref Height, frame.Height);
 
         if (BackgroundFrame == null)
         {
             // alloc memory for a backgound image and for current image
-            BackgroundFrame = grayMotionFrame;
+            UpdateBackground(grayscaleFrame);
 
             // just return for the first time
             return 0;
         }
 
-        if (BackgroundFrame.Length != grayMotionFrame.Length || grayMotionFrame.Length != Width * Height)
+        if (BackgroundFrame.Length != grayscaleFrame.Length ||
+            grayscaleFrame.Length != Width * Height)
         {
             return 0;
         }
 
-        var diffCount = OnPixelsDiffAction(motionFrame, BackgroundFrame, grayMotionFrame);
-        Interlocked.Exchange(ref pixelsChanged, diffCount);
-        var motionLevel = (double)diffCount / (Width * Height);
-
-        if (diffCount > 0)
-        {
-            BackgroundFrame = grayMotionFrame;
-        }
-
-        return motionLevel;
+        Interlocked.Exchange(ref pixelsChanged, OnPixelsDiffAction(frame, grayscaleFrame));
+        return MotionLevel;
     }
 
-    protected abstract unsafe int OnPixelsDiffAction(SKBitmap image, byte[] background, byte[] frame);
+    protected abstract unsafe int OnPixelsDiffAction(SKBitmap image, byte[] frame);
+
+    protected void UpdateBackground(byte[] background)
+    {
+        Interlocked.Exchange(ref BackgroundFrame, background);
+    }
 
     public virtual void Reset()
     {

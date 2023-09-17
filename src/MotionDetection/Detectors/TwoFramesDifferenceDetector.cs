@@ -4,40 +4,45 @@ namespace MotionDetection.Detectors;
 
 public class TwoFramesDifferenceDetector : MotionDetector
 {
-    protected override unsafe int OnPixelsDiffAction(SKBitmap image, byte[] background, byte[] frame)
+    protected override unsafe int OnPixelsDiffAction(SKBitmap image, byte[] frame)
     {
         byte* dstPtr = (byte*)image.GetPixels().ToPointer();
         var colorIndexes = image.GetColorIndexes();
         var updatedPixels = 0;
 
-        for (int i = 0; i < background.Length; i++)
+        for (int y = 0; y < image.Height; y++)
         {
-            var diff = background[i] - frame[i];
-            if (diff > DifferenceThreshold || diff < -DifferenceThreshold)
+            for (int x = 0; x < image.Width; x++)
             {
-                updatedPixels++;
-                // Store the bytes in the adjusted bitmap
-                if (colorIndexes.Red < colorIndexes.Green)
+                int offset = (y * image.Width + x);
+                var diff = BackgroundFrame[offset] - frame[offset];
+                if (diff > DifferenceThreshold || diff < -DifferenceThreshold)
                 {
-                    *dstPtr++ = DetectionColor.Red;
-                    *dstPtr++ = DetectionColor.Green;
-                    *dstPtr++ = DetectionColor.Blue;
-                    *dstPtr++ = DetectionColor.Alpha;
+                    updatedPixels++;
+                    // Store the bytes in the adjusted bitmap
+                    if (colorIndexes.Red < colorIndexes.Green)
+                    {
+                        *dstPtr++ = DetectionColor.Red;
+                        *dstPtr++ = DetectionColor.Green;
+                        *dstPtr++ = DetectionColor.Blue;
+                        *dstPtr++ = DetectionColor.Alpha;
+                    }
+                    else
+                    {
+                        *dstPtr++ = DetectionColor.Blue;
+                        *dstPtr++ = DetectionColor.Green;
+                        *dstPtr++ = DetectionColor.Red;
+                        *dstPtr++ = DetectionColor.Alpha;
+                    }
                 }
                 else
                 {
-                    *dstPtr++ = DetectionColor.Blue;
-                    *dstPtr++ = DetectionColor.Green;
-                    *dstPtr++ = DetectionColor.Red;
-                    *dstPtr++ = DetectionColor.Alpha;
+                    dstPtr += image.BytesPerPixel;
                 }
-            }
-            else
-            {
-                dstPtr += image.BytesPerPixel;
             }
         }
 
+        UpdateBackground(frame);
         return updatedPixels;
     }
 }

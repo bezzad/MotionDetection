@@ -222,11 +222,6 @@ public sealed class MainWindowViewModel
         if (await UIThread.TryBind())
         {
             // Update a bitmap.
-            bitmap.Mirror();//.ToGrayScaleImage();
-            //var newbitmap = bitmap.ToGrayScaleArray()
-            //    .ApplyMedianFilter(bitmap.Width, bitmap.Height)
-            //    .ToImage(bitmap.Width, bitmap.Height);
-
             Image = bitmap;
 
             // Update statistics.
